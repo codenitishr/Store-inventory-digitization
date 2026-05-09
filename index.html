@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Store Inventory Scanner</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 12px; background: #f0f2f5; color: #1a1a2e; }
+    h1 { font-size: 18px; margin: 0 0 12px; }
+    .card { background: white; border-radius: 14px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .card h2 { font-size: 15px; margin: 0 0 12px; color: #34495e; }
+    input, select { width: 100%; padding: 10px 12px; border: 1px solid #dde; border-radius: 8px; margin-top: 5px; font-size: 14px; color: #1a1a2e; background: white; }
+    input[readonly] { background: #f7f8fc; color: #666; }
+    label { font-size: 12px; font-weight: bold; color: #555; display: block; margin-top: 12px; }
+    label .req { color: #e74c3c; }
+    button { width: 100%; padding: 13px; border: none; border-radius: 9px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 8px; transition: opacity 0.15s; }
+    button:active { opacity: 0.75; }
+    .btn-scan    { background: #2c3e50; color: white; }
+    .btn-lookup  { background: #2980b9; color: white; }
+    .btn-gen     { background: #8e44ad; color: white; }
+    .btn-save    { background: #27ae60; color: white; font-size: 16px; padding: 15px; }
+    .btn-clear   { background: #ecf0f1; color: #555; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .status { padding: 10px 12px; border-radius: 8px; margin: 8px 0; font-size: 13px; line-height: 1.4; }
+    .ok   { background: #d5f5e3; color: #1a7a44; }
+    .err  { background: #fdecea; color: #c0392b; }
+    .info { background: #eaf4fb; color: #1a5276; }
+    #reader { border-radius: 10px; overflow: hidden; }
+    #barcodeSection { display:none; text-align:center; padding-top:12px; border-top: 1px solid #eee; margin-top:12px; }
+  </style>
+</head>
+<body>
+
+<h1>📦 Inventory Scanner</h1>
+
+<!-- SCANNER -->
+<div class="card">
+  <div style="display:flex; gap:8px;">
+    <button class="btn-scan" style="flex:1" onclick="toggleScan()" id="scanBtn">📷 Scan Barcode</button>
+    <button class="btn-lookup" style="flex:1" onclick="lookupEAN()">🔍 Look Up</button>
+  </div>
+  <div id="reader" style="margin-top:10px;"></div>
+  <input id="eanCode" placeholder="Type or scan EAN / UPC code" style="margin-top:10px;" />
+  <div id="scanStatus"></div>
+</div>
+
+<!-- ARTICLE FORM -->
+<div class="card">
+  <h2>Article Details</h2>
+
+  <label>Article Code <span style="color:#8e44ad;font-size:11px;">(auto-generated)</span></label>
+  <div style="display:flex; gap:6px;">
+    <input id="articleCode" placeholder="Select brand/vendor + category first" readonly style="flex:1;" />
+    <button class="btn-gen" style="width:auto;padding:10px 12px;margin:5px 0 0;" onclick="generateCode()">⚡ Gen</button>
+  </div>
+
+  <label>Article Description <span class="req">*</span></label>
+  <input id="description" placeholder="e.g., Nike Air Max 90 Running Shoe" />
+
+  <label>EAN/UPC Code (scanned/typed)</label>
+  <input id="eanDisplay" readonly placeholder="Populated from scan" />
+
+  <div class="row2">
+    <div>
+      <label>Category <span class="req">*</span></label>
+      <select id="category"><option value="">Select</option></select>
+    </div>
+    <div>
+      <label>Sub-Category</label>
+      <input id="subCategory" placeholder="Optional" />
+    </div>
+  </div>
+
+  <div class="row2">
+    <div>
+      <label>Brand</label>
+      <select id="brand"><option value="">— Select Brand —</option></select>
+    </div>
+    <div>
+      <label>Vendor (non-branded)</label>
+      <select id="vendor"><option value="">— Select Vendor —</option></select>
+    </div>
+  </div>
+
+  <div class="row2">
+    <div>
+      <label>Colour <span class="req">*</span></label>
+      <select id="color"><option value="">Select</option></select>
+    </div>
+    <div>
+      <label>Size <span class="req">*</span></label>
+      <input id="size" placeholder="S/M/L/XL or 8/9 or NA" />
+    </div>
+  </div>
+
+  <div class="row2">
+    <div>
+      <label>Unit of Measure</label>
+      <select id="uom">
+        <option value="PCS">PCS (Pieces)</option>
+        <option value="KG">KG</option>
+        <option value="LTR">LTR</option>
+        <option value="ML">ML</option>
+        <option value="MTR">MTR</option>
+        <option value="DZN">DZN (Dozen)</option>
+        <option value="SET">SET</option>
+      </select>
+    </div>
+    <div>
+      <label>Qty in Stock</label>
+      <input id="qty" type="number" placeholder="0" value="0" min="0" />
+    </div>
+  </div>
+
+  <div class="row2">
+    <div>
+      <label>MRP (₹) <span class="req">*</span></label>
+      <input id="mrp" type="number" placeholder="0.00" step="0.01" min="0" />
+    </div>
+    <div>
+      <label>Cost Price (₹)</label>
+      <input id="costPrice" type="number" placeholder="0.00" step="0.01" min="0" />
+    </div>
+  </div>
+
+  <div class="row2">
+    <div>
+      <label>Selling Price (₹)</label>
+      <input id="sellingPrice" type="number" placeholder="Default = MRP" step="0.01" />
+    </div>
+    <div>
+      <label>GST Rate (%)</label>
+      <select id="gstRate">
+        <option value="0">0%</option>
+        <option value="5">5%</option>
+        <option value="12">12%</option>
+        <option value="18" selected>18%</option>
+        <option value="28">28%</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="row2">
+    <div>
+      <label>HSN Code</label>
+      <input id="hsnCode" placeholder="e.g., 6109, 6404" />
+    </div>
+    <div>
+      <label>Min Stock Level</label>
+      <input id="minStock" type="number" placeholder="0" value="0" min="0" />
+    </div>
+  </div>
+
+  <label>Storage Location</label>
+  <input id="location" placeholder="e.g., Rack A, Shelf 2, Bin 3" />
+
+  <label>Remarks</label>
+  <input id="remarks" placeholder="Fabric, variant notes, etc." />
+
+  <div id="saveStatus"></div>
+  <button class="btn-save" onclick="saveArticle()">💾 Save Article</button>
+  <button class="btn-clear" onclick="clearForm()">Clear Form</button>
+
+  <!-- Barcode output for local articles -->
+  <div id="barcodeSection">
+    <p style="font-size:13px; color:#555; margin-bottom:8px;">Local barcode generated — print and paste on article</p>
+    <canvas id="barcodeCanvas"></canvas>
+    <button onclick="window.print()" style="background:#e67e22;color:white;margin-top:8px;">🖨️ Print Label</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIG — Replace with your Apps Script Web App URL
+// ============================================================
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxeydrR6C4ysmrH6mTL9W4Xhp0DAJuB_hdm1lxqVGHrB7Nw5-hzVuJahI3HaPRhDig1oA/exec';
+
+// ---- State ----
+let html5QrCode = null;
+let scanning = false;
+
+// ---- Init ----
+window.onload = async () => {
+  await loadLookups();
+};
+
+// ---- Load Lookup Tables ----
+async function loadLookups() {
+  try {
+    const res = await fetch(`${SCRIPT_URL}?action=getLookups`);
+    const data = await res.json();
+
+    const catEl = document.getElementById('category');
+    (data.categories || []).forEach(([code, name]) => {
+      catEl.innerHTML += `<option value="${code}">${name}</option>`;
+    });
+
+    const brandEl = document.getElementById('brand');
+    (data.brands || []).forEach(([code, name]) => {
+      brandEl.innerHTML += `<option value="${code}">${name} (${code})</option>`;
+    });
+
+    const vendorEl = document.getElementById('vendor');
+    (data.vendors || []).forEach(([code, name]) => {
+      vendorEl.innerHTML += `<option value="${code}">${name} (${code})</option>`;
+    });
+
+    const colorEl = document.getElementById('color');
+    (data.colors || []).forEach(([code, name]) => {
+      colorEl.innerHTML += `<option value="${code}">${name}</option>`;
+    });
+  } catch (e) {
+    showStatus('saveStatus', '⚠️ Could not load lookup tables. Check SCRIPT_URL in code.', 'err');
+  }
+}
+
+// ---- Scanner ----
+async function toggleScan() {
+  if (scanning) {
+    await html5QrCode.stop();
+    scanning = false;
+    document.getElementById('scanBtn').textContent = '📷 Scan Barcode';
+    return;
+  }
+
+  html5QrCode = new Html5Qrcode("reader");
+  html5QrCode.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: { width: 260, height: 100 } },
+    async (decoded) => {
+      await html5QrCode.stop();
+      scanning = false;
+      document.getElementById('scanBtn').textContent = '📷 Scan Barcode';
+      document.getElementById('eanCode').value = decoded;
+      document.getElementById('eanDisplay').value = decoded;
+      await lookupEAN();
+    },
+    () => {}
+  );
+  scanning = true;
+  document.getElementById('scanBtn').textContent = '⏹ Stop Scan';
+}
+
+// ---- EAN Lookup ----
+async function lookupEAN() {
+  const ean = document.getElementById('eanCode').value.trim();
+  if (!ean) { alert('Enter or scan an EAN code first'); return; }
+  document.getElementById('eanDisplay').value = ean;
+  showStatus('scanStatus', '🔍 Looking up...', 'info');
+
+  // 1. Check local DB
+  try {
+    const localRes = await fetch(`${SCRIPT_URL}?action=lookupByEAN&ean=${ean}`);
+    const local = await localRes.json();
+    if (local.found) {
+      showStatus('scanStatus', `✅ Already in DB: ${local.article.articleCode} — ${local.article.description} (MRP ₹${local.article.mrp})`, 'ok');
+      return;
+    }
+  } catch (e) { /* continue to API */ }
+
+  // 2. Open Food Facts
+  try {
+    const apiRes = await fetch(`https://world.openfoodfacts.org/api/v0/product/${ean}.json`);
+    const data = await apiRes.json();
+    if (data.status === 1) {
+      const p = data.product;
+      document.getElementById('description').value = p.product_name_en || p.product_name || '';
+      // Auto-match brand
+      if (p.brands) {
+        const brandName = p.brands.split(',')[0].trim().toLowerCase();
+        const brandEl = document.getElementById('brand');
+        for (let opt of brandEl.options) {
+          if (opt.text.toLowerCase().includes(brandName)) { brandEl.value = opt.value; break; }
+        }
+      }
+      showStatus('scanStatus', '✅ Found on Open Food Facts. Review and fill remaining fields.', 'ok');
+    } else {
+      showStatus('scanStatus', 'ℹ️ New article — not found online. Fill all details manually.', 'info');
+    }
+  } catch (e) {
+    showStatus('scanStatus', 'ℹ️ New article. Fill details manually.', 'info');
+  }
+}
+
+// ---- Article Code Generation ----
+async function generateCode() {
+  const brandCode  = document.getElementById('brand').value;
+  const vendorCode = document.getElementById('vendor').value;
+  const catCode    = document.getElementById('category').value;
+  const color      = document.getElementById('color').value || 'NA';
+  const size       = (document.getElementById('size').value || 'NA').trim();
+
+  if (!catCode) { alert('Select a Category first'); return; }
+  if (!brandCode && !vendorCode) { alert('Select a Brand or Vendor first'); return; }
+
+  const useCode = brandCode || vendorCode;
+  try {
+    const res = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'generateCode', brandCode: useCode, catCode })
+    });
+    const data = await res.json();
+    document.getElementById('articleCode').value = `${data.code}-${color}-${size}`;
+  } catch (e) {
+    alert('Code generation failed. Check internet and SCRIPT_URL.');
+  }
+}
+
+// ---- Save Article ----
+async function saveArticle() {
+  // Validation
+  const checks = [
+    ['articleCode', 'Article Code (generate it first)'],
+    ['description', 'Article Description'],
+    ['category', 'Category'],
+    ['mrp', 'MRP'],
+  ];
+  for (const [id, label] of checks) {
+    if (!document.getElementById(id).value) { alert(`Required: ${label}`); return; }
+  }
+  if (!document.getElementById('color').value) { alert('Required: Colour'); return; }
+  if (!document.getElementById('size').value) { alert('Required: Size (use NA if not applicable)'); return; }
+  if (!document.getElementById('brand').value && !document.getElementById('vendor').value) {
+    alert('Select a Brand or Vendor'); return;
+  }
+
+  const article = {
+    articleCode:  document.getElementById('articleCode').value,
+    ean:          document.getElementById('eanDisplay').value,
+    description:  document.getElementById('description').value,
+    category:     document.getElementById('category').value,
+    subCategory:  document.getElementById('subCategory').value,
+    brand:        document.getElementById('brand').value,
+    vendor:       document.getElementById('vendor').value,
+    color:        document.getElementById('color').value,
+    size:         document.getElementById('size').value,
+    uom:          document.getElementById('uom').value,
+    mrp:          document.getElementById('mrp').value,
+    costPrice:    document.getElementById('costPrice').value,
+    sellingPrice: document.getElementById('sellingPrice').value,
+    gstRate:      document.getElementById('gstRate').value,
+    hsnCode:      document.getElementById('hsnCode').value,
+    qty:          document.getElementById('qty').value,
+    minStock:     document.getElementById('minStock').value,
+    location:     document.getElementById('location').value,
+    remarks:      document.getElementById('remarks').value,
+  };
+
+  showStatus('saveStatus', '💾 Saving...', 'info');
+
+  try {
+    const res = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'saveArticle', article })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      showStatus('saveStatus', `✅ Saved! Code: ${data.articleCode}`, 'ok');
+      // Show barcode for local articles (no EAN)
+      if (!article.ean) {
+        document.getElementById('barcodeSection').style.display = 'block';
+        JsBarcode("#barcodeCanvas", article.articleCode, {
+          format: "CODE128", width: 2.2, height: 65,
+          displayValue: true, fontSize: 12, margin: 10
+        });
+      }
+      setTimeout(clearForm, 3000);
+    } else {
+      showStatus('saveStatus', `❌ ${data.error}${data.existingCode ? ' (' + data.existingCode + ')' : ''}`, 'err');
+    }
+  } catch (e) {
+    showStatus('saveStatus', '❌ Network error. Check internet connection.', 'err');
+  }
+}
+
+// ---- Helpers ----
+function clearForm() {
+  const textFields = ['articleCode','eanCode','eanDisplay','description',
+    'subCategory','size','mrp','costPrice','sellingPrice','hsnCode',
+    'qty','minStock','location','remarks'];
+  textFields.forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('qty').value = '0';
+  document.getElementById('minStock').value = '0';
+
+  const selectFields = ['category','brand','vendor','color'];
+  selectFields.forEach(id => { document.getElementById(id).selectedIndex = 0; });
+  document.getElementById('gstRate').value = '18';
+  document.getElementById('uom').value = 'PCS';
+
+  document.getElementById('barcodeSection').style.display = 'none';
+  showStatus('scanStatus', '', '');
+  showStatus('saveStatus', '', '');
+}
+
+function showStatus(id, msg, type) {
+  const el = document.getElementById(id);
+  el.className = `status ${type}`;
+  el.textContent = msg;
+  if (!msg) el.className = '';
+}
+</script>
+</body>
+</html>
