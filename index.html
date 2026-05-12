@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Nit's Store Inventory Scanner</title>
+  <title>Store Inventory Scanner</title>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
   <style>
@@ -652,8 +652,10 @@ async function saveArticle(forceNew) {
 // Choice A: add qty to existing article
 async function chooseAddToStock() {
   if (!pendingDupArticleCode) return;
-  const qty      = parseInt(document.getElementById('qty').value) || 0;
-  const location = document.getElementById('dupNewLocation').value.trim();
+  // Capture into local variable BEFORE dismissDupPanel() resets pendingDupArticleCode to ''
+  const articleCode = pendingDupArticleCode;
+  const qty         = parseInt(document.getElementById('qty').value) || 0;
+  const location    = document.getElementById('dupNewLocation').value.trim();
 
   if (qty <= 0) {
     showStatus('saveStatus', '❌ Enter a quantity greater than 0 before adding to stock.', 'err');
@@ -666,7 +668,7 @@ async function chooseAddToStock() {
   try {
     const res  = await fetch(SCRIPT_URL, {
       method: 'POST',
-      body:   JSON.stringify({ action: 'addToStock', articleCode: pendingDupArticleCode, additionalQty: qty, newLocation: location })
+      body:   JSON.stringify({ action: 'addToStock', articleCode, additionalQty: qty, newLocation: location })
     });
     const data = await res.json();
 
