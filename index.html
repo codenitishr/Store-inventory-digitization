@@ -3,404 +3,805 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Store Inventory Scanner</title>
+  <title>Nit's Store Inventory Scanner</title>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
   <style>
-    * { box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 12px; background: #f0f2f5; color: #1a1a2e; }
-    h1 { font-size: 18px; margin: 0 0 12px; }
-    .card { background: white; border-radius: 14px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
-    .card h2 { font-size: 15px; margin: 0 0 12px; color: #34495e; }
-    input, select { width: 100%; padding: 10px 12px; border: 1px solid #dde; border-radius: 8px; margin-top: 5px; font-size: 14px; color: #1a1a2e; background: white; }
-    input[readonly] { background: #f7f8fc; color: #666; }
-    label { font-size: 12px; font-weight: bold; color: #555; display: block; margin-top: 12px; }
-    label .req { color: #e74c3c; }
-    button { width: 100%; padding: 13px; border: none; border-radius: 9px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 8px; transition: opacity 0.15s; }
-    button:active { opacity: 0.75; }
-    .btn-scan    { background: #2c3e50; color: white; }
-    .btn-lookup  { background: #2980b9; color: white; }
-    .btn-gen     { background: #8e44ad; color: white; }
-    .btn-save    { background: #27ae60; color: white; font-size: 16px; padding: 15px; }
-    .btn-clear   { background: #ecf0f1; color: #555; }
+    *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      max-width: 480px; margin: auto; padding: 10px 12px 40px;
+      background: #f0f2f5; color: #1a1a2e; font-size: 15px;
+    }
+    .app-header { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+    .app-header h1 { font-size: 17px; font-weight: 700; margin: 0; }
+
+    /* Cards */
+    .card { background: white; border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 5px rgba(0,0,0,0.07); }
+    .card-title { font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.6px; margin: 0 0 12px; }
+
+    /* Form */
+    .field { margin-top: 11px; }
+    .field:first-child { margin-top: 0; }
+    label { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.3px; display: block; margin-bottom: 4px; }
+    label .req { color: #ef4444; }
+    input, select {
+      width: 100%; padding: 10px 12px; border: 1.5px solid #e5e7eb;
+      border-radius: 9px; font-size: 14px; color: #111827; background: white;
+      outline: none; transition: border-color 0.15s; appearance: none; -webkit-appearance: none;
+    }
+    input:focus, select:focus { border-color: #6366f1; }
+    input.err-field { border-color: #ef4444 !important; background: #fff8f8; }
+    input[readonly] { background: #f9fafb; color: #374151; font-family: monospace; font-size: 13px; }
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
+    }
     .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .status { padding: 10px 12px; border-radius: 8px; margin: 8px 0; font-size: 13px; line-height: 1.4; }
-    .ok   { background: #d5f5e3; color: #1a7a44; }
-    .err  { background: #fdecea; color: #c0392b; }
-    .info { background: #eaf4fb; color: #1a5276; }
-    #reader { border-radius: 10px; overflow: hidden; }
-    #barcodeSection { display:none; text-align:center; padding-top:12px; border-top: 1px solid #eee; margin-top:12px; }
+
+    /* Buttons */
+    button {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 12px 14px; border: none; border-radius: 10px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: opacity 0.12s, transform 0.1s; width: 100%;
+    }
+    button:active { opacity: 0.75; transform: scale(0.98); }
+    button:disabled { opacity: 0.45; pointer-events: none; }
+    .btn-scan  { background: #1e293b; color: white; }
+    .btn-look  { background: #2563eb; color: white; }
+    .btn-save  { background: #16a34a; color: white; font-size: 15px; padding: 14px; margin-top: 12px; }
+    .btn-clear { background: #f3f4f6; color: #374151; margin-top: 8px; }
+    .btn-print { background: #ea580c; color: white; margin-top: 8px; }
+    .btns2     { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .btns3     { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+    /* Status banners */
+    .status { border-radius: 9px; padding: 10px 12px; font-size: 13px; line-height: 1.5; margin-top: 8px; display: none; }
+    .status.show { display: block; }
+    .status.ok   { background: #dcfce7; color: #166534; }
+    .status.err  { background: #fee2e2; color: #991b1b; }
+    .status.info { background: #dbeafe; color: #1e40af; }
+    .status.warn { background: #fef3c7; color: #92400e; }
+
+    /* Field errors */
+    .field-err { font-size: 11px; color: #ef4444; margin-top: 3px; display: none; }
+    .field-err.show { display: block; }
+
+    /* ---- DUPLICATE DECISION PANEL ---- */
+    #dupPanel {
+      display: none;
+      background: #fffbeb;
+      border: 1.5px solid #f59e0b;
+      border-radius: 12px;
+      padding: 14px;
+      margin-top: 10px;
+    }
+    #dupPanel.show { display: block; }
+    .dup-title { font-size: 13px; font-weight: 700; color: #92400e; margin: 0 0 6px; }
+    .dup-detail { font-size: 12px; color: #78350f; line-height: 1.55; margin-bottom: 12px; }
+    .dup-detail strong { font-weight: 700; }
+    /* Location input inside dup panel */
+    .dup-loc-row { margin-bottom: 10px; }
+    .dup-loc-row label { font-size: 11px; font-weight: 700; color: #78350f; display: block; margin-bottom: 4px; }
+    .dup-loc-row input { font-size: 13px; border-color: #d97706; }
+    /* Action buttons */
+    .btn-add   { background: #059669; color: white; font-size: 13px; padding: 10px; }
+    .btn-new   { background: #6b7280; color: white; font-size: 13px; padding: 10px; }
+    .btn-cancel-dup { background: #f3f4f6; color: #374151; font-size: 13px; padding: 10px; }
+
+    /* Barcode type pill */
+    .bc-pill { display: none; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px; margin-top: 5px; width: fit-content; }
+    .bc-pill.show  { display: inline-flex; }
+    .bc-ean    { background: #dcfce7; color: #15803d; }
+    .bc-vendor { background: #ede9fe; color: #6d28d9; }
+    .bc-empty  { background: #f3f4f6; color: #6b7280; }
+
+    /* Scanner */
+    #reader { border-radius: 12px; overflow: hidden; display: none; margin-top: 10px; }
+    #reader.active { display: block; }
+
+    /* Barcode output */
+    #barcodeSection { display: none; padding-top: 14px; border-top: 1px solid #f0f2f5; margin-top: 14px; text-align: center; }
+    .bc-label-note { font-size: 12px; color: #6b7280; margin-bottom: 8px; }
+    #barcodeCanvas { max-width: 100%; }
+
+    hr.div { border: none; border-top: 1px solid #f0f2f5; margin: 13px 0; }
+
+    .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.35); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media print {
+      body > * { display: none !important; }
+      #printZone { display: block !important; text-align: center; padding: 20px; }
+    }
   </style>
 </head>
 <body>
 
-<h1>📦 Inventory Scanner</h1>
-
-<!-- SCANNER -->
-<div class="card">
-  <div style="display:flex; gap:8px;">
-    <button class="btn-scan" style="flex:1" onclick="toggleScan()" id="scanBtn">📷 Scan Barcode</button>
-    <button class="btn-lookup" style="flex:1" onclick="lookupEAN()">🔍 Look Up</button>
-  </div>
-  <div id="reader" style="margin-top:10px;"></div>
-  <input id="eanCode" placeholder="Type or scan EAN / UPC code" style="margin-top:10px;" />
-  <div id="scanStatus"></div>
+<div class="app-header">
+  <span style="font-size:22px;">📦</span>
+  <h1>Inventory Scanner</h1>
 </div>
 
-<!-- ARTICLE FORM -->
+<!-- ==================== STEP 1: SCAN ==================== -->
 <div class="card">
-  <h2>Article Details</h2>
+  <div class="card-title">Step 1 — Scan or enter barcode</div>
+  <div class="btns2">
+    <button class="btn-scan" id="scanBtn" onclick="toggleScan()">📷 Scan</button>
+    <button class="btn-look" onclick="doLookup()">🔍 Look up</button>
+  </div>
+  <div id="reader"></div>
+  <div class="field">
+    <label>Barcode / code <span style="font-size:10px;color:#9ca3af;">— leave blank if article has no barcode</span></label>
+    <input id="scannedCode" placeholder="Scan, type EAN, vendor code — or leave blank"
+           autocomplete="off" autocorrect="off" spellcheck="false"
+           oninput="onCodeInput()" onblur="onCodeBlur()" />
+    <div class="bc-pill" id="bcPill"></div>
+    <div class="field-err" id="codeErr"></div>
+  </div>
+  <div class="status" id="scanStatus"></div>
+</div>
 
-  <label>Article Code <span style="color:#8e44ad;font-size:11px;">(auto-generated)</span></label>
-  <div style="display:flex; gap:6px;">
-    <input id="articleCode" placeholder="Select brand/vendor + category first" readonly style="flex:1;" />
-    <button class="btn-gen" style="width:auto;padding:10px 12px;margin:5px 0 0;" onclick="generateCode()">⚡ Gen</button>
+<!-- ==================== STEP 2: ARTICLE FORM ==================== -->
+<div class="card">
+  <div class="card-title">Step 2 — Article details</div>
+
+  <div class="field">
+    <label>Article code <span style="font-size:10px;color:#9ca3af;text-transform:none;letter-spacing:0;">— generated automatically on save</span></label>
+    <input id="articleCode" readonly placeholder="Auto-generated when you tap Save" />
   </div>
 
-  <label>Article Description <span class="req">*</span></label>
-  <input id="description" placeholder="e.g., Nike Air Max 90 Running Shoe" />
+  <div class="field">
+    <label>Article description <span class="req">*</span></label>
+    <input id="description" placeholder="e.g., Amante Lace Bra — Underwire" autocomplete="off" />
+    <div class="field-err" id="descErr"></div>
+  </div>
 
-  <label>EAN/UPC Code (scanned/typed)</label>
-  <input id="eanDisplay" readonly placeholder="Populated from scan" />
+  <hr class="div">
 
   <div class="row2">
-    <div>
+    <div class="field">
       <label>Category <span class="req">*</span></label>
-      <select id="category"><option value="">Select</option></select>
+      <select id="category"><option value="">— Select —</option></select>
+      <div class="field-err" id="catErr"></div>
     </div>
-    <div>
-      <label>Sub-Category</label>
-      <input id="subCategory" placeholder="Optional" />
+    <div class="field">
+      <label>Sub-category</label>
+      <input id="subCategory" placeholder="e.g., Cotton Saree" />
     </div>
   </div>
 
   <div class="row2">
-    <div>
+    <div class="field">
       <label>Brand</label>
-      <select id="brand"><option value="">— Select Brand —</option></select>
+      <select id="brand"><option value="">— Select brand —</option></select>
     </div>
-    <div>
-      <label>Vendor (non-branded)</label>
-      <select id="vendor"><option value="">— Select Vendor —</option></select>
+    <div class="field">
+      <label>Vendor <span style="font-size:9px;color:#9ca3af;">(non-branded)</span></label>
+      <select id="vendor"><option value="">— Select vendor —</option></select>
     </div>
   </div>
+  <div class="field-err" id="bvErr"></div>
+
+  <hr class="div">
 
   <div class="row2">
-    <div>
+    <div class="field">
       <label>Colour <span class="req">*</span></label>
-      <select id="color"><option value="">Select</option></select>
+      <select id="colour"><option value="">— Select —</option></select>
+      <div class="field-err" id="colourErr"></div>
     </div>
-    <div>
+    <div class="field">
       <label>Size <span class="req">*</span></label>
-      <input id="size" placeholder="S/M/L/XL or 8/9 or NA" />
+      <input id="size" placeholder="S / M / L / XL / 8 / NA" autocomplete="off" />
+      <div class="field-err" id="sizeErr"></div>
     </div>
   </div>
 
   <div class="row2">
-    <div>
-      <label>Unit of Measure</label>
+    <div class="field">
+      <label>Unit of measure</label>
       <select id="uom">
-        <option value="PCS">PCS (Pieces)</option>
+        <option value="PCS">PCS — Pieces</option>
+        <option value="PAIR">PAIR</option>
+        <option value="SET">SET</option>
+        <option value="DZN">DZN — Dozen</option>
         <option value="KG">KG</option>
+        <option value="GM">GM</option>
         <option value="LTR">LTR</option>
         <option value="ML">ML</option>
         <option value="MTR">MTR</option>
-        <option value="DZN">DZN (Dozen)</option>
-        <option value="SET">SET</option>
       </select>
     </div>
-    <div>
-      <label>Qty in Stock</label>
-      <input id="qty" type="number" placeholder="0" value="0" min="0" />
+    <div class="field">
+      <label>Qty in stock</label>
+      <input id="qty" type="number" value="0" min="0" inputmode="numeric" />
     </div>
   </div>
 
+  <hr class="div">
+
   <div class="row2">
-    <div>
+    <div class="field">
       <label>MRP (₹) <span class="req">*</span></label>
-      <input id="mrp" type="number" placeholder="0.00" step="0.01" min="0" />
+      <input id="mrp" type="number" placeholder="0.00" step="0.01" min="0" inputmode="decimal" />
+      <div class="field-err" id="mrpErr"></div>
     </div>
-    <div>
-      <label>Cost Price (₹)</label>
-      <input id="costPrice" type="number" placeholder="0.00" step="0.01" min="0" />
+    <div class="field">
+      <label>Cost price (₹)</label>
+      <input id="costPrice" type="number" placeholder="0.00" step="0.01" min="0" inputmode="decimal" />
     </div>
   </div>
 
   <div class="row2">
-    <div>
-      <label>Selling Price (₹)</label>
-      <input id="sellingPrice" type="number" placeholder="Default = MRP" step="0.01" />
+    <div class="field">
+      <label>Selling price (₹)</label>
+      <input id="sellingPrice" type="number" placeholder="Default = MRP" step="0.01" inputmode="decimal" />
     </div>
-    <div>
-      <label>GST Rate (%)</label>
+    <div class="field">
+      <label>GST rate (%)</label>
       <select id="gstRate">
-        <option value="0">0%</option>
-        <option value="5">5%</option>
-        <option value="12">12%</option>
-        <option value="18" selected>18%</option>
-        <option value="28">28%</option>
+        <option value="0">0%  — Essential food, books</option>
+        <option value="5">5%  — Daily FMCG, staples</option>
+        <option value="12">12% — Processed food, apparel ≤999</option>
+        <option value="18" selected>18% — Apparel >₹1000, electronics</option>
+        <option value="28">28% — Luxury, tobacco</option>
       </select>
     </div>
   </div>
 
   <div class="row2">
-    <div>
-      <label>HSN Code</label>
-      <input id="hsnCode" placeholder="e.g., 6109, 6404" />
+    <div class="field">
+      <label>HSN code</label>
+      <input id="hsnCode" placeholder="e.g., 6109, 6404" inputmode="numeric" />
     </div>
-    <div>
-      <label>Min Stock Level</label>
-      <input id="minStock" type="number" placeholder="0" value="0" min="0" />
+    <div class="field">
+      <label>Min stock level</label>
+      <input id="minStock" type="number" value="0" min="0" inputmode="numeric" />
     </div>
   </div>
 
-  <label>Storage Location</label>
-  <input id="location" placeholder="e.g., Rack A, Shelf 2, Bin 3" />
+  <div class="row2">
+    <div class="field">
+      <label>Max stock level</label>
+      <input id="maxStock" type="number" placeholder="—" min="0" inputmode="numeric" />
+    </div>
+    <div class="field">
+      <label>Storage location</label>
+      <input id="location" placeholder="Rack A, Aisle 1" autocomplete="off" />
+    </div>
+  </div>
 
-  <label>Remarks</label>
-  <input id="remarks" placeholder="Fabric, variant notes, etc." />
+  <div class="field">
+    <label>Remarks</label>
+    <input id="remarks" placeholder="Fabric, variant notes, supplier ref…" />
+  </div>
 
-  <div id="saveStatus"></div>
-  <button class="btn-save" onclick="saveArticle()">💾 Save Article</button>
-  <button class="btn-clear" onclick="clearForm()">Clear Form</button>
+  <!-- ==================== DUPLICATE DECISION PANEL ==================== -->
+  <!--
+    Shown when a no-barcode article's attribute fingerprint matches
+    an existing article. Three choices given to the operator.
+  -->
+  <div id="dupPanel">
+    <div class="dup-title">⚠️ Possible duplicate detected</div>
+    <div class="dup-detail" id="dupDetail"></div>
 
-  <!-- Barcode output for local articles -->
+    <div class="dup-loc-row">
+      <label>New / additional location (optional)</label>
+      <input id="dupNewLocation" placeholder="e.g., Aisle 5, Shelf 3" autocomplete="off" />
+    </div>
+
+    <div class="btns3">
+      <button class="btn-add"        onclick="chooseAddToStock()">
+        ➕ Add to stock
+      </button>
+      <button class="btn-new"        id="btnSaveNew" onclick="chooseSaveNew()">
+        📋 New article
+      </button>
+      <button class="btn-cancel-dup" onclick="dismissDupPanel()">
+        ✕ Cancel
+      </button>
+    </div>
+    <div style="font-size:11px;color:#78350f;margin-top:8px;line-height:1.5;">
+      <strong>Add to stock</strong> — same product at a different location; add qty to the existing record.<br>
+      <strong>New article</strong> — genuinely different item sharing the same attributes (no barcode only).<br>
+      <strong>Cancel</strong> — go back and re-check the article before deciding.
+    </div>
+  </div>
+
+  <div class="status" id="saveStatus"></div>
+
+  <button class="btn-save" id="saveBtn" onclick="saveArticle(false)">💾 Save article</button>
+  <button class="btn-clear" onclick="clearForm()">✕ Clear form</button>
+
+  <!-- Barcode output for no-barcode articles -->
   <div id="barcodeSection">
-    <p style="font-size:13px; color:#555; margin-bottom:8px;">Local barcode generated — print and paste on article</p>
+    <hr class="div">
+    <div class="bc-label-note" id="bcNote"></div>
     <canvas id="barcodeCanvas"></canvas>
-    <button onclick="window.print()" style="background:#e67e22;color:white;margin-top:8px;">🖨️ Print Label</button>
+    <button class="btn-print" onclick="printLabel()">🖨️ Print label</button>
   </div>
+</div>
+
+<div id="printZone" style="display:none;">
+  <canvas id="printCanvas"></canvas>
+  <div id="printDesc" style="font-family:Arial;font-size:13px;margin-top:8px;"></div>
 </div>
 
 <script>
 // ============================================================
-// CONFIG — Replace with your Apps Script Web App URL
+//  CONFIG
 // ============================================================
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxeydrR6C4ysmrH6mTL9W4Xhp0DAJuB_hdm1lxqVGHrB7Nw5-hzVuJahI3HaPRhDig1oA/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxeydrR6C4ysmrH6mTL9W4Xhp0DAJuB_hdm1lxqVGHrB7Nw5-hzVuJahI3HaPRhDig1oA/exec'; // ← Replace
 
-// ---- State ----
-let html5QrCode = null;
-let scanning = false;
+// ============================================================
+//  STATE
+// ============================================================
+let html5QrCode  = null;
+let scanning     = false;
+let saving       = false;
+let lastLookedUp = '';
+let pendingDupArticleCode = ''; // holds existing article code during dup decision
+let pendingDupType        = ''; // 'BARCODE' or 'ATTRIBUTE' — controls panel button visibility
 
-// ---- Init ----
+// ============================================================
+//  INIT
+// ============================================================
 window.onload = async () => {
   await loadLookups();
+  try {
+    const r = await fetch(`${SCRIPT_URL}?action=ping`);
+    const d = await r.json();
+    if (!d.ok) showStatus('scanStatus', '⚠️ Backend not responding — check SCRIPT_URL.', 'warn');
+  } catch {
+    showStatus('scanStatus', '⚠️ Cannot reach backend. Check internet and SCRIPT_URL.', 'warn');
+  }
 };
 
-// ---- Load Lookup Tables ----
+// ============================================================
+//  LOOKUPS
+// ============================================================
 async function loadLookups() {
   try {
-    const res = await fetch(`${SCRIPT_URL}?action=getLookups`);
+    const res  = await fetch(`${SCRIPT_URL}?action=getLookups`);
     const data = await res.json();
-
-    const catEl = document.getElementById('category');
-    (data.categories || []).forEach(([code, name]) => {
-      catEl.innerHTML += `<option value="${code}">${name}</option>`;
-    });
-
-    const brandEl = document.getElementById('brand');
-    (data.brands || []).forEach(([code, name]) => {
-      brandEl.innerHTML += `<option value="${code}">${name} (${code})</option>`;
-    });
-
-    const vendorEl = document.getElementById('vendor');
-    (data.vendors || []).forEach(([code, name]) => {
-      vendorEl.innerHTML += `<option value="${code}">${name} (${code})</option>`;
-    });
-
-    const colorEl = document.getElementById('color');
-    (data.colors || []).forEach(([code, name]) => {
-      colorEl.innerHTML += `<option value="${code}">${name}</option>`;
-    });
+    if (data.error) throw new Error(data.error);
+    populateSelect('category', data.categories || [], 'Select category');
+    populateSelect('brand',    data.brands     || [], 'Select brand');
+    populateSelect('vendor',   data.vendors    || [], 'Select vendor');
+    populateSelect('colour',   data.colors     || [], 'Select colour');
   } catch (e) {
-    showStatus('saveStatus', '⚠️ Could not load lookup tables. Check SCRIPT_URL in code.', 'err');
+    showStatus('scanStatus', '⚠️ Lookups failed: ' + e.message, 'warn');
   }
 }
 
-// ---- Scanner ----
+function populateSelect(id, rows, placeholder) {
+  const el = document.getElementById(id);
+  el.innerHTML = `<option value="">— ${placeholder} —</option>`;
+  rows.forEach(r => {
+    const code = String(r[0] || '').trim();
+    const name = String(r[1] || '').trim();
+    if (code) el.innerHTML += `<option value="${code}">${name} (${code})</option>`;
+  });
+}
+
+// ============================================================
+//  BARCODE TYPE DETECTION
+// ============================================================
+function detectBarcodeType(code) {
+  if (!code || !code.trim()) return 'NONE';
+  const c = code.trim();
+  if (/^\d+$/.test(c)) {
+    if (c.length === 13) return 'EAN13';
+    if (c.length === 12) return 'UPC-A';
+    if (c.length === 8)  return 'EAN8';
+    return 'VENDOR-NUM';
+  }
+  return 'VENDOR-ALPHA';
+}
+
+const PILL_CFG = {
+  'EAN13':        { label: '✔ EAN-13',              cls: 'bc-ean'    },
+  'UPC-A':        { label: '✔ UPC-A',               cls: 'bc-ean'    },
+  'EAN8':         { label: '✔ EAN-8',               cls: 'bc-ean'    },
+  'VENDOR-NUM':   { label: '⬡ Vendor (numeric)',    cls: 'bc-vendor' },
+  'VENDOR-ALPHA': { label: '⬡ Vendor (alpha)',      cls: 'bc-vendor' },
+  'NONE':         { label: '○ No barcode — article code will be used', cls: 'bc-empty' }
+};
+
+function updatePill(type) {
+  const pill = document.getElementById('bcPill');
+  const cfg  = PILL_CFG[type] || PILL_CFG['NONE'];
+  pill.textContent = cfg.label;
+  pill.className   = 'bc-pill show ' + cfg.cls;
+}
+
+// ============================================================
+//  SCANNER
+// ============================================================
 async function toggleScan() {
+  const btn    = document.getElementById('scanBtn');
+  const reader = document.getElementById('reader');
   if (scanning) {
-    await html5QrCode.stop();
+    try { await html5QrCode.stop(); } catch {}
     scanning = false;
-    document.getElementById('scanBtn').textContent = '📷 Scan Barcode';
+    btn.textContent = '📷 Scan';
+    reader.classList.remove('active');
+    return;
+  }
+  html5QrCode = new Html5Qrcode('reader');
+  reader.classList.add('active');
+  try {
+    await html5QrCode.start(
+      { facingMode: 'environment' },
+      { fps: 12, qrbox: { width: 280, height: 110 } },
+      async decoded => {
+        decoded = decoded.trim();
+        try { await html5QrCode.stop(); } catch {}
+        scanning = false;
+        btn.textContent = '📷 Scan';
+        reader.classList.remove('active');
+        document.getElementById('scannedCode').value = decoded;
+        onCodeInput();
+        await doLookup();
+      },
+      () => {}
+    );
+    scanning = true;
+    btn.textContent = '⏹ Stop';
+  } catch (err) {
+    reader.classList.remove('active');
+    showStatus('scanStatus', '❌ Camera error: ' + err.message, 'err');
+  }
+}
+
+// ============================================================
+//  CODE INPUT EVENTS
+// ============================================================
+function onCodeInput() {
+  const val  = document.getElementById('scannedCode').value.trim();
+  const type = detectBarcodeType(val);
+  updatePill(type);
+  hideErr('codeErr');
+  clearStatus('scanStatus');
+  dismissDupPanel(); // reset if user changes the code
+}
+
+function onCodeBlur() {
+  const val = document.getElementById('scannedCode').value.trim();
+  if (val && val !== lastLookedUp) doLookup();
+  if (!val) updatePill('NONE');
+}
+
+// ============================================================
+//  LOOKUP  (local DB first, then Open Food Facts for standard EAN)
+// ============================================================
+async function doLookup() {
+  const raw = document.getElementById('scannedCode').value.trim();
+  if (!raw) return;
+  lastLookedUp = raw;
+  clearStatus('scanStatus');
+  showStatus('scanStatus', '🔍 Looking up…', 'info');
+  const type = detectBarcodeType(raw);
+  updatePill(type);
+
+  // 1. Local DB
+  try {
+    const r = await fetch(`${SCRIPT_URL}?action=lookupByScannedCode&code=${encodeURIComponent(raw)}`);
+    const d = await r.json();
+    if (d.found) {
+      showStatus('scanStatus',
+        `⚠️ Already in inventory: <strong>${d.article.articleCode}</strong> — ${d.article.description} (MRP ₹${d.article.mrp}). Duplicate will be blocked on save.`,
+        'warn');
+      return;
+    }
+  } catch { /* continue */ }
+
+  // 2. Open Food Facts (standard EAN only)
+  if (['EAN13','UPC-A','EAN8'].includes(type)) {
+    try {
+      const r = await fetch(`https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(raw)}.json`);
+      const d = await r.json();
+      if (d.status === 1 && d.product) {
+        const p    = d.product;
+        const desc = (p.product_name_en || p.product_name || '').trim();
+        if (desc) document.getElementById('description').value = desc;
+        if (p.brands) {
+          const bn   = p.brands.split(',')[0].trim().toLowerCase();
+          const bdEl = document.getElementById('brand');
+          for (const opt of bdEl.options) {
+            if (opt.text.toLowerCase().includes(bn)) { bdEl.value = opt.value; break; }
+          }
+        }
+        showStatus('scanStatus', '✅ Found on Open Food Facts — description pre-filled. Review all fields.', 'ok');
+        return;
+      }
+    } catch { /* skip */ }
+  }
+
+  const msg = (type === 'VENDOR-ALPHA' || type === 'VENDOR-NUM')
+    ? 'ℹ️ Vendor / local barcode — fill all details manually.'
+    : 'ℹ️ New article — fill all details manually.';
+  showStatus('scanStatus', msg, 'info');
+}
+
+// ============================================================
+//  VALIDATION
+// ============================================================
+function validate() {
+  let ok = true;
+  if (!document.getElementById('description').value.trim()) {
+    showErr('descErr', 'Description is required'); ok = false;
+  } else hideErr('descErr');
+  if (!document.getElementById('category').value) {
+    showErr('catErr', 'Select a category'); ok = false;
+  } else hideErr('catErr');
+  if (!document.getElementById('brand').value && !document.getElementById('vendor').value) {
+    showErr('bvErr', 'Select a brand or a vendor'); ok = false;
+  } else hideErr('bvErr');
+  if (!document.getElementById('colour').value) {
+    showErr('colourErr', 'Select a colour'); ok = false;
+  } else hideErr('colourErr');
+  if (!document.getElementById('size').value.trim()) {
+    showErr('sizeErr', 'Enter size or "NA" if not applicable'); ok = false;
+  } else hideErr('sizeErr');
+  const mrp = parseFloat(document.getElementById('mrp').value);
+  if (!mrp || mrp <= 0) {
+    showErr('mrpErr', 'Enter a valid MRP (greater than 0)'); ok = false;
+  } else hideErr('mrpErr');
+  return ok;
+}
+
+// ============================================================
+//  SAVE ARTICLE
+//  forceNew = false → normal save (backend may return ATTRIBUTE duplicate warning)
+//  forceNew = true  → skip attribute check (user chose "Save as new article")
+// ============================================================
+async function saveArticle(forceNew) {
+  if (saving) return;
+  clearStatus('saveStatus');
+  dismissDupPanel();
+
+  if (!validate()) {
+    showStatus('saveStatus', '❌ Fix the highlighted fields before saving.', 'err');
     return;
   }
 
-  html5QrCode = new Html5Qrcode("reader");
-  html5QrCode.start(
-    { facingMode: "environment" },
-    { fps: 10, qrbox: { width: 260, height: 100 } },
-    async (decoded) => {
-      await html5QrCode.stop();
-      scanning = false;
-      document.getElementById('scanBtn').textContent = '📷 Scan Barcode';
-      document.getElementById('eanCode').value = decoded;
-      document.getElementById('eanDisplay').value = decoded;
-      await lookupEAN();
-    },
-    () => {}
-  );
-  scanning = true;
-  document.getElementById('scanBtn').textContent = '⏹ Stop Scan';
-}
+  saving = true;
+  const btn = document.getElementById('saveBtn');
+  btn.disabled  = true;
+  btn.innerHTML = '<span class="spinner"></span> Saving…';
 
-// ---- EAN Lookup ----
-async function lookupEAN() {
-  const ean = document.getElementById('eanCode').value.trim();
-  if (!ean) { alert('Enter or scan an EAN code first'); return; }
-  document.getElementById('eanDisplay').value = ean;
-  showStatus('scanStatus', '🔍 Looking up...', 'info');
+  const article = collectFormData();
 
-  // 1. Check local DB
   try {
-    const localRes = await fetch(`${SCRIPT_URL}?action=lookupByEAN&ean=${ean}`);
-    const local = await localRes.json();
-    if (local.found) {
-      showStatus('scanStatus', `✅ Already in DB: ${local.article.articleCode} — ${local.article.description} (MRP ₹${local.article.mrp})`, 'ok');
-      return;
-    }
-  } catch (e) { /* continue to API */ }
-
-  // 2. Open Food Facts
-  try {
-    const apiRes = await fetch(`https://world.openfoodfacts.org/api/v0/product/${ean}.json`);
-    const data = await apiRes.json();
-    if (data.status === 1) {
-      const p = data.product;
-      document.getElementById('description').value = p.product_name_en || p.product_name || '';
-      // Auto-match brand
-      if (p.brands) {
-        const brandName = p.brands.split(',')[0].trim().toLowerCase();
-        const brandEl = document.getElementById('brand');
-        for (let opt of brandEl.options) {
-          if (opt.text.toLowerCase().includes(brandName)) { brandEl.value = opt.value; break; }
-        }
-      }
-      showStatus('scanStatus', '✅ Found on Open Food Facts. Review and fill remaining fields.', 'ok');
-    } else {
-      showStatus('scanStatus', 'ℹ️ New article — not found online. Fill all details manually.', 'info');
-    }
-  } catch (e) {
-    showStatus('scanStatus', 'ℹ️ New article. Fill details manually.', 'info');
-  }
-}
-
-// ---- Article Code Generation ----
-async function generateCode() {
-  const brandCode  = document.getElementById('brand').value;
-  const vendorCode = document.getElementById('vendor').value;
-  const catCode    = document.getElementById('category').value;
-  const color      = document.getElementById('color').value || 'NA';
-  const size       = (document.getElementById('size').value || 'NA').trim();
-
-  if (!catCode) { alert('Select a Category first'); return; }
-  if (!brandCode && !vendorCode) { alert('Select a Brand or Vendor first'); return; }
-
-  const useCode = brandCode || vendorCode;
-  try {
-    const res = await fetch(SCRIPT_URL, {
+    const res  = await fetch(SCRIPT_URL, {
       method: 'POST',
-      body: JSON.stringify({ action: 'generateCode', brandCode: useCode, catCode })
+      body:   JSON.stringify({ action: 'saveArticle', article, forceNew: !!forceNew })
     });
     const data = await res.json();
-    document.getElementById('articleCode').value = `${data.code}-${color}-${size}`;
+
+    if (data.success) {
+      document.getElementById('articleCode').value = data.articleCode;
+      showStatus('saveStatus', `✅ Saved — Article code: <strong>${data.articleCode}</strong>`, 'ok');
+      if (data.needsPrintLabel) {
+        renderBarcode(data.printableBarcode);
+        document.getElementById('bcNote').textContent =
+          'No barcode on this article — print label and paste it on.';
+        document.getElementById('barcodeSection').style.display = 'block';
+      } else {
+        document.getElementById('barcodeSection').style.display = 'none';
+      }
+      setTimeout(clearForm, 4500);
+
+    } else if (data.duplicateType === 'BARCODE') {
+      // Same barcode found — could be same article at a different location.
+      // Offer "Add to stock" but NOT "Save as new" (two articles sharing one
+      // physical barcode would break scanning at billing).
+      const ex = data.existing || {};
+      pendingDupArticleCode = ex.articleCode || '';
+      pendingDupType        = 'BARCODE';
+      const detail =
+        `This barcode is already registered in your inventory:<br><br>` +
+        `<strong>${ex.articleCode}</strong> — ${ex.description}<br>` +
+        `MRP ₹${ex.mrp} &nbsp;|&nbsp; Qty: ${ex.qty} &nbsp;|&nbsp; Location: ${ex.location || 'not set'}<br><br>` +
+        `This is likely the same article found at a different location. ` +
+        `You can add the quantity to the existing record, or cancel to re-check.`;
+      document.getElementById('dupDetail').innerHTML = detail;
+      // Hide "Save as new" — same barcode cannot belong to two article codes
+      document.getElementById('btnSaveNew').style.display = 'none';
+      document.getElementById('dupPanel').classList.add('show');
+      document.getElementById('dupNewLocation').value = document.getElementById('location').value;
+
+    } else if (data.duplicateType === 'ATTRIBUTE') {
+      // No-barcode article — attribute fingerprint matched. Could be same product
+      // at a different location, or a genuinely different item. All three choices shown.
+      const ex = data.existing || {};
+      pendingDupArticleCode = ex.articleCode || '';
+      pendingDupType        = 'ATTRIBUTE';
+      const detail =
+        `An article with the same <strong>Brand/Vendor, Category, Colour, and Size</strong> is already in your inventory:<br><br>` +
+        `<strong>${ex.articleCode}</strong> — ${ex.description}<br>` +
+        `MRP ₹${ex.mrp} &nbsp;|&nbsp; Qty: ${ex.qty} &nbsp;|&nbsp; Location: ${ex.location || 'not set'}<br><br>` +
+        `This could be the same article found at a different location (e.g. Aisle 1 → Aisle 5), ` +
+        `or it could be a genuinely different item from the same vendor. What would you like to do?`;
+      document.getElementById('dupDetail').innerHTML = detail;
+      // Show "Save as new" — no shared physical barcode, so two article codes are fine
+      document.getElementById('btnSaveNew').style.display = '';
+      document.getElementById('dupPanel').classList.add('show');
+      document.getElementById('dupNewLocation').value = document.getElementById('location').value;
+
+    } else {
+      showStatus('saveStatus', `❌ ${data.error || 'Unknown error'}`, 'err');
+    }
+
   } catch (e) {
-    alert('Code generation failed. Check internet and SCRIPT_URL.');
+    showStatus('saveStatus', '❌ Network error: ' + e.message, 'err');
+  } finally {
+    saving        = false;
+    btn.disabled  = false;
+    btn.innerHTML = '💾 Save article';
   }
 }
 
-// ---- Save Article ----
-async function saveArticle() {
-  // Validation
-  const checks = [
-    ['articleCode', 'Article Code (generate it first)'],
-    ['description', 'Article Description'],
-    ['category', 'Category'],
-    ['mrp', 'MRP'],
-  ];
-  for (const [id, label] of checks) {
-    if (!document.getElementById(id).value) { alert(`Required: ${label}`); return; }
-  }
-  if (!document.getElementById('color').value) { alert('Required: Colour'); return; }
-  if (!document.getElementById('size').value) { alert('Required: Size (use NA if not applicable)'); return; }
-  if (!document.getElementById('brand').value && !document.getElementById('vendor').value) {
-    alert('Select a Brand or Vendor'); return;
+// ============================================================
+//  DUPLICATE DECISION PANEL — THREE CHOICES
+// ============================================================
+
+// Choice A: add qty to existing article
+async function chooseAddToStock() {
+  if (!pendingDupArticleCode) return;
+  const qty      = parseInt(document.getElementById('qty').value) || 0;
+  const location = document.getElementById('dupNewLocation').value.trim();
+
+  if (qty <= 0) {
+    showStatus('saveStatus', '❌ Enter a quantity greater than 0 before adding to stock.', 'err');
+    return;
   }
 
-  const article = {
-    articleCode:  document.getElementById('articleCode').value,
-    ean:          document.getElementById('eanDisplay').value,
-    description:  document.getElementById('description').value,
+  dismissDupPanel();
+  showStatus('saveStatus', '⏳ Updating stock…', 'info');
+
+  try {
+    const res  = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      body:   JSON.stringify({ action: 'addToStock', articleCode: pendingDupArticleCode, additionalQty: qty, newLocation: location })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      showStatus('saveStatus',
+        `✅ Stock updated — <strong>${data.articleCode}</strong><br>` +
+        `Qty: ${data.previousQty} → <strong>${data.newQty}</strong>` +
+        (data.location ? ` &nbsp;|&nbsp; Location: ${data.location}` : ''),
+        'ok');
+      setTimeout(clearForm, 4500);
+    } else {
+      showStatus('saveStatus', '❌ ' + (data.error || 'Stock update failed'), 'err');
+    }
+  } catch (e) {
+    showStatus('saveStatus', '❌ Network error: ' + e.message, 'err');
+  }
+}
+
+// Choice B: save as genuinely new article (bypass attribute check)
+function chooseSaveNew() {
+  dismissDupPanel();
+  // Pass forceNew=true to skip the attribute fingerprint check
+  saveArticle(true);
+}
+
+// Choice C: cancel — leave form intact so user can review
+function dismissDupPanel() {
+  document.getElementById('dupPanel').classList.remove('show');
+  pendingDupArticleCode = '';
+  pendingDupType        = '';
+}
+
+// ============================================================
+//  COLLECT FORM DATA
+// ============================================================
+function collectFormData() {
+  return {
+    scannedCode:  document.getElementById('scannedCode').value.trim(),
+    description:  document.getElementById('description').value.trim(),
     category:     document.getElementById('category').value,
-    subCategory:  document.getElementById('subCategory').value,
+    subCategory:  document.getElementById('subCategory').value.trim(),
     brand:        document.getElementById('brand').value,
     vendor:       document.getElementById('vendor').value,
-    color:        document.getElementById('color').value,
-    size:         document.getElementById('size').value,
+    colour:       document.getElementById('colour').value,
+    size:         document.getElementById('size').value.trim().toUpperCase(),
     uom:          document.getElementById('uom').value,
     mrp:          document.getElementById('mrp').value,
     costPrice:    document.getElementById('costPrice').value,
     sellingPrice: document.getElementById('sellingPrice').value,
     gstRate:      document.getElementById('gstRate').value,
-    hsnCode:      document.getElementById('hsnCode').value,
-    qty:          document.getElementById('qty').value,
-    minStock:     document.getElementById('minStock').value,
-    location:     document.getElementById('location').value,
-    remarks:      document.getElementById('remarks').value,
+    hsnCode:      document.getElementById('hsnCode').value.trim(),
+    qty:          document.getElementById('qty').value || '0',
+    minStock:     document.getElementById('minStock').value || '0',
+    maxStock:     document.getElementById('maxStock').value || '',
+    location:     document.getElementById('location').value.trim(),
+    remarks:      document.getElementById('remarks').value.trim()
   };
+}
 
-  showStatus('saveStatus', '💾 Saving...', 'info');
-
+// ============================================================
+//  BARCODE RENDERING
+// ============================================================
+function renderBarcode(code) {
   try {
-    const res = await fetch(SCRIPT_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'saveArticle', article })
+    JsBarcode('#barcodeCanvas', code, {
+      format: 'CODE128', width: 2.0, height: 58,
+      displayValue: true, fontSize: 11, margin: 10
     });
-    const data = await res.json();
-
-    if (data.success) {
-      showStatus('saveStatus', `✅ Saved! Code: ${data.articleCode}`, 'ok');
-      // Show barcode for local articles (no EAN)
-      if (!article.ean) {
-        document.getElementById('barcodeSection').style.display = 'block';
-        JsBarcode("#barcodeCanvas", article.articleCode, {
-          format: "CODE128", width: 2.2, height: 65,
-          displayValue: true, fontSize: 12, margin: 10
-        });
-      }
-      setTimeout(clearForm, 3000);
-    } else {
-      showStatus('saveStatus', `❌ ${data.error}${data.existingCode ? ' (' + data.existingCode + ')' : ''}`, 'err');
-    }
-  } catch (e) {
-    showStatus('saveStatus', '❌ Network error. Check internet connection.', 'err');
-  }
+  } catch (e) { console.warn('Barcode render error:', e); }
 }
 
-// ---- Helpers ----
-function clearForm() {
-  const textFields = ['articleCode','eanCode','eanDisplay','description',
-    'subCategory','size','mrp','costPrice','sellingPrice','hsnCode',
-    'qty','minStock','location','remarks'];
-  textFields.forEach(id => { document.getElementById(id).value = ''; });
-  document.getElementById('qty').value = '0';
-  document.getElementById('minStock').value = '0';
-
-  const selectFields = ['category','brand','vendor','color'];
-  selectFields.forEach(id => { document.getElementById(id).selectedIndex = 0; });
-  document.getElementById('gstRate').value = '18';
-  document.getElementById('uom').value = 'PCS';
-
-  document.getElementById('barcodeSection').style.display = 'none';
-  showStatus('scanStatus', '', '');
-  showStatus('saveStatus', '', '');
+function printLabel() {
+  const src  = document.getElementById('barcodeCanvas');
+  const dest = document.getElementById('printCanvas');
+  dest.width  = src.width;
+  dest.height = src.height;
+  dest.getContext('2d').drawImage(src, 0, 0);
+  document.getElementById('printDesc').textContent =
+    document.getElementById('description').value ||
+    document.getElementById('articleCode').value;
+  window.print();
 }
 
+// ============================================================
+//  HELPERS
+// ============================================================
+function showErr(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+  const s = el.previousElementSibling;
+  if (s && ['INPUT','SELECT'].includes(s.tagName)) s.classList.add('err-field');
+}
+function hideErr(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = '';
+  el.classList.remove('show');
+  const s = el.previousElementSibling;
+  if (s) s.classList.remove('err-field');
+}
 function showStatus(id, msg, type) {
   const el = document.getElementById(id);
-  el.className = `status ${type}`;
-  el.textContent = msg;
-  if (!msg) el.className = '';
+  if (!el) return;
+  el.innerHTML = msg.replace(/\n/g, '<br>');
+  el.className = 'status show ' + type;
+}
+function clearStatus(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = '';
+  el.className = 'status';
+}
+function clearForm() {
+  ['scannedCode','description','subCategory','size','mrp','costPrice',
+   'sellingPrice','hsnCode','location','remarks','articleCode',
+   'qty','minStock','maxStock'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('qty').value      = '0';
+  document.getElementById('minStock').value = '0';
+  ['category','brand','vendor','colour'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.selectedIndex = 0;
+  });
+  document.getElementById('gstRate').value = '18';
+  document.getElementById('uom').value     = 'PCS';
+  ['scanStatus','saveStatus'].forEach(clearStatus);
+  ['codeErr','descErr','catErr','bvErr','colourErr','sizeErr','mrpErr'].forEach(hideErr);
+  document.getElementById('barcodeSection').style.display = 'none';
+  document.getElementById('bcPill').className = 'bc-pill';
+  dismissDupPanel();
+  lastLookedUp = '';
 }
 </script>
 </body>
